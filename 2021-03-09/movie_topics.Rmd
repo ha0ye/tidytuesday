@@ -1,0 +1,86 @@
+---
+title: "movie_topic_bechdel"
+author: "Hao Ye"
+date: "3/9/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+# Setup
+
+```{r}
+library(tidyverse)
+library(topicmodels)
+
+movies <- readRDS(here::here("2021-03-09/movies.RDS"))
+```
+
+# Data Processing
+
+## construct document term matrix from movie plots
+
+```{r}
+library(tm)
+
+movies_plot_dat <- select(movies, doc_id = imdb, text = plot)
+movies_corpus <- VCorpus(DataframeSource(movies_plot_dat))
+movies_dtm <- DocumentTermMatrix(movies_corpus, 
+                                 control = list(removePunctuation = TRUE, 
+                                                stopwords = TRUE))
+## filter movies with zero terms (empty plot text?)
+dtm_zero_idx <- apply(movies_dtm, 1, sum) == 0
+movies_dtm <- movies_dtm[!dtm_zero_idx,]
+```
+
+## compute topic model
+
+```{r}
+num_topics <- 20
+movies_TM <- LDA(movies_dtm, num_topics)
+```
+
+## extract out topic info
+
+```{r}
+movies_id <- movies_TM@documents
+movies_gamma <- movies_TM@gamma
+movies_topics <- terms(movies_TM, 5)
+```
+
+## assemble data
+
+```{r}
+primary_topic <- topics(movies_TM)
+movies_dat <- data.frame(id = movies_id, 
+                         primary_topic = primary_topic)
+colnames(movies_gamma) <- paste("topic", seq(num_topics))
+movies_dat <- cbind(movies_dat, movies_gamma) %>%
+    left_join(movies, by = c("id" = "imdb")) %>%
+    mutate(clean_test = fct_relevel(clean_test, "dubious", "nowomen", "notalk", "men", "ok"))
+```
+
+# Plot
+
+## bechdel results by primary topic
+
+```{r}
+ggplot(movies_dat, 
+       aes(x = primary_topic, 
+           fill = clean_test)) + 
+    geom_bar() + 
+    theme_bw()
+```
+
+## topic term table
+
+```{r}
+knitr::kable(movies_topics)
+```
+
+
+
+
+
