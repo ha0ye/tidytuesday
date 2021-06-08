@@ -39,5 +39,13 @@ records %>%
     summarize(num_records = n())
 
 
-
+to_plot %>%
+    filter(date > as.Date("2019-01-01"), 
+           shortcut == "Yes", 
+           track %in% c("Rainbow Road", 
+                        "Luigi Raceway", 
+                        "Toad's Turnpike", 
+                        "Sherbet Land")) %>%
+    arrange(date) %>%
+    {.} -> xx
 
